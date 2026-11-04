@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>생기부 & 탐구활동 포트폴리오 아카이브</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: 'Pretendard', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navigation Bar -->
+    <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-graduation-cap text-2xl text-amber-400"></i>
+                <h1 class="font-bold text-lg sm:text-xl tracking-tight">생기부 & 탐구 아카이브</h1>
+            </div>
+            
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <div id="userBadge" class="hidden sm:flex items-center text-xs bg-indigo-800 px-3 py-1.5 rounded-full border border-indigo-700">
+                    <i class="fa-solid fa-circle-user text-amber-400 mr-1.5 text-sm"></i>
+                    <span id="userEmailDisplay" class="font-medium text-slate-200">로그인 필요</span>
+                </div>
+
+                <button id="authBtn" onclick="openAuthModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-3 py-1.5 rounded-lg text-sm transition flex items-center shadow-sm">
+                    <i class="fa-solid fa-right-to-bracket mr-1.5"></i> 로그인 / 회원가입
+                </button>
+
+                <button onclick="openConfigModal()" class="bg-indigo-800 hover:bg-indigo-700 text-slate-200 p-2 rounded-lg text-sm transition" title="Supabase 설정 및 가이드">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+
+                <button onclick="openGithubModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-600 transition flex items-center">
+                    <i class="fa-brands fa-github mr-1.5"></i> 깃허브 올리는 법
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Cloud Sync Alert Notice -->
+        <div id="cloudSyncNotice" class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r-lg shadow-sm flex items-start justify-between">
+            <div class="flex items-start">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg mr-3 mt-0.5"></i>
+                <div>
+                    <h3 class="font-bold text-amber-800 text-sm">기기 간 실시간 자동 동기화 설정 안내</h3>
+                    <p class="text-xs text-amber-700 mt-1">
+                        현재 **클라우드 미연동(로컬 전용 모드)** 상태입니다. 오른쪽 상단 **⚙️ 설정**에서 Supabase URL과 Key를 입력하고 **로그인**하면 어느 컴퓨터에서 접속하든 파일과 기록이 실시간 자동 저장됩니다.
+                    </p>
+                </div>
+            </div>
+            <button onclick="openConfigModal()" class="text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-md transition shrink-0 ml-4">
+                연동 설정하기
+            </button>
+        </div>
+
+        <!-- Upper Section: Stats & Action Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900">학종 면접 대비 탐구 포트폴리오</h2>
+                <p class="text-slate-500 text-sm mt-1">세특, 동아리, 진로활동 파일(PPT, TXT, 이미지)과 예상 면접 Q&A를 한곳에 체계적으로 기록하세요.</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="openActivityModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-xl transition flex items-center shadow-md">
+                    <i class="fa-solid fa-plus mr-2"></i> 새 탐구활동 등록
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-3 items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-filter text-slate-400 text-sm"></i>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">필터:</span>
+            </div>
+            
+            <select id="filterCategory" onchange="renderActivities()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option value="ALL">전체 영역 (세특, 동아리 등)</option>
+                <option value="교과세특">교과세특</option>
+                <option value="자율/동아리">자율/동아리</option>
+                <option value="진로활동">진로활동</option>
+                <option value="독서활동">독서활동</option>
+                <option value="기타">기타 활동</option>
+            </select>
+
+            <select id="filterGrade" onchange="renderActivities()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option value="ALL">전체 학년/학기</option>
+                <option value="1-1">1학년 1학기</option>
+                <option value="1-2">1학년 2학기</option>
+                <option value="2-1">2학년 1학기</option>
+                <option value="2-2">2학년 2학기</option>
+                <option value="3-1">3학년 1학기</option>
+            </select>
+
+            <div class="relative flex-grow max-w-xs ml-auto">
+                <input type="text" id="searchInput" onkeyup="renderActivities()" placeholder="활동명, 과목, 키워드 검색..." class="w-full bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-indigo-500">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+            </div>
+        </div>
+
+        <!-- Activity Grid / Card List -->
+        <div id="activityGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+        <!-- Empty State View -->
+        <div id="emptyState" class="hidden text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300 mt-4">
+            <div class="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-700">등록된 탐구 활동이 없습니다</h3>
+            <p class="text-sm text-slate-500 mt-1 mb-4">고등학교 3년 동안 진행한 세특, 동아리, PPT 발표 자료를 미리 정리해 두세요.</p>
+            <button onclick="openActivityModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                첫 활동 작성하기
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 mt-12 text-xs">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+            <p>생기부 탐구 포트폴리오 아카이브 &copy; 대입 면접 완벽 대비 툴</p>
+            <p class="text-slate-500">Supabase Cloud + GitHub Pages 연동 가능</p>
+        </div>
+    </footer>
+
+    <!-- MODAL 1: Activity Form Modal (Create / Edit) -->
+    <div id="activityModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full my-8 overflow-hidden transform transition-all">
+            <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+                <h3 id="modalTitle" class="font-bold text-lg flex items-center">
+                    <i class="fa-solid fa-pen-to-square mr-2 text-amber-400"></i> 탐구 활동 등록/수정
+                </h3>
+                <button onclick="closeActivityModal()" class="text-slate-300 hover:text-white transition text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <form id="activityForm" onsubmit="handleSaveActivity(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="activityId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">학년/학기 *</label>
+                        <select id="formGrade" required class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none">
+                            <option value="1-1">1학년 1학기</option>
+                            <option value="1-2">1학년 2학기</option>
+                            <option value="2-1">2학년 1학기</option>
+                            <option value="2-2">2학년 2학기</option>
+                            <option value="3-1">3학년 1학기</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">영역 분류 *</label>
+                        <select id="formCategory" required class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none">
+                            <option value="교과세특">교과세특</option>
+                            <option value="자율/동아리">자율/동아리</option>
+                            <option value="진로활동">진로활동</option>
+                            <option value="독서활동">독서활동</option>
+                            <option value="기타">기타 활동</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">과목 / 주제명 *</label>
+                        <input type="text" id="formSubject" required placeholder="예: 물리학I, 자율동아리" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">탐구 주제 / 활동명 *</label>
+                    <input type="text" id="formTitle" required placeholder="예: 전자기 유도 현상을 활용한 무선 충전 기술 분석 탐구" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">탐구 동기 & 배경 계기</label>
+                    <textarea id="formMotivation" rows="2" placeholder="왜 이 주제를 탐구하게 되었나요? (수업시간 배운 내용, 호기심 등)" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">주요 탐구 내용 & 결과 요약</label>
+                    <textarea id="formSummary" rows="3" placeholder="읽은 책/논문, 진행한 실험, 알게 된 핵심 개념을 적어주세요." class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1 text-indigo-700">🎯 예상 면접 질문 & 꼬리 질문 답변 준비</label>
+                    <textarea id="formInterview" rows="3" placeholder="입학사정관이 물어볼 만한 예상 질문과 추가 탐구한 핵심 답변을 정리해보세요." class="w-full bg-indigo-50/50 border border-indigo-200 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">첨부 파일 (PPT, PDF, TXT, 이미지 등)</label>
+                    <input type="file" id="formFile" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <div id="existingFileDisplay" class="mt-2 text-xs text-slate-600 hidden"></div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeActivityModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition">취소</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition shadow-md">저장하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Auth Modal (Login / Sign up) -->
+    <div id="authModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+            <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center"><i class="fa-solid fa-user-lock mr-2 text-amber-400"></i> 클라우드 계정 로그인</h3>
+                <button onclick="closeAuthModal()" class="text-slate-300 hover:text-white transition text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">이메일 주소</label>
+                    <input type="email" id="authEmail" placeholder="student@example.com" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">비밀번호</label>
+                    <input type="password" id="authPassword" placeholder="비밀번호 입력" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="handleLogin()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-sm transition shadow-sm">로그인</button>
+                    <button onclick="handleSignUp()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 rounded-xl text-sm transition">회원가입</button>
+                </div>
+                <button id="logoutBtn" onclick="handleLogout()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-2 rounded-xl text-sm transition hidden border border-rose-200 mt-2">
+                    로그아웃
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Supabase Config Modal -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center"><i class="fa-solid fa-gear mr-2 text-amber-400"></i> Supabase 연동 설정</h3>
+                <button onclick="closeConfigModal()" class="text-slate-300 hover:text-white transition text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Supabase Project URL</label>
+                    <input type="text" id="cfgUrl" placeholder="https://your-project.supabase.co" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm font-mono focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Supabase Anon Key (public key)</label>
+                    <input type="text" id="cfgKey" placeholder="eyJhbGciOiJIUzI1Ni..." class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-sm font-mono focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <button onclick="copySQL()" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold py-2 px-3 rounded-lg transition flex items-center justify-center">
+                        <i class="fa-solid fa-copy mr-1.5"></i> Supabase DB 생성 SQL 복사하기
+                    </button>
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button onclick="saveSupabaseConfig()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-sm transition">설정 저장 및 동기화</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: GitHub Pages Guide Modal -->
+    <div id="githubModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center"><i class="fa-brands fa-github mr-2 text-amber-400"></i> GitHub Pages 1분 배포</h3>
+                <button onclick="closeGithubModal()" class="text-slate-300 hover:text-white transition text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 space-y-3 text-xs text-slate-700">
+                <ol class="list-decimal list-inside space-y-2 font-medium">
+                    <li><a href="https://github.com" target="_blank" class="text-indigo-600 underline">GitHub.com</a> 로그인 후 New Repository 생성</li>
+                    <li>저장소 이름 작성 후 <b>Public</b>으로 설정하고 Create 클릭</li>
+                    <li><b>Add file -> Create new file</b> 클릭하여 파일명을 <code class="bg-slate-100 px-1 py-0.5 rounded text-rose-600 font-bold">index.html</code>로 지정</li>
+                    <li>이 웹페이지의 전체 HTML 소스코드를 붙여넣고 <b>Commit changes</b> 저장</li>
+                    <li><b>Settings -> Pages</b> 탭 이동 후 Branch를 <b>main</b>으로 설정하고 Save 클릭하면 배포 웹 URL 완성!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        let supabaseClient = null;
+        let currentUser = null;
+        let activities = [];
+
+        // App Initializer
+        window.addEventListener('DOMContentLoaded', () => {
+            initSupabase();
+            loadLocalActivities();
+            renderActivities();
+        });
+
+        function initSupabase() {
+            const url = localStorage.getItem('sb_url');
+            const key = localStorage.getItem('sb_key');
+            if (url && key) {
+                try {
+                    supabaseClient = supabase.createClient(url, key);
+                    document.getElementById('cloudSyncNotice').classList.add('hidden');
+                    checkUserSession();
+                } catch(e) {
+                    console.error("Supabase init error", e);
+                }
+            }
+        }
+
+        async function checkUserSession() {
+            if (!supabaseClient) return;
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user) {
+                currentUser = session.user;
+                updateUserUI();
+                fetchCloudActivities();
+            }
+        }
+
+        function updateUserUI() {
+            const badge = document.getElementById('userBadge');
+            const emailSpan = document.getElementById('userEmailDisplay');
+            const authBtn = document.getElementById('authBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+
+            if (currentUser) {
+                badge.classList.remove('hidden');
+                emailSpan.textContent = currentUser.email;
+                authBtn.innerHTML = `<i class="fa-solid fa-user-check mr-1.5"></i> ${currentUser.email.split('@')[0]}`;
+                logoutBtn.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+                authBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket mr-1.5"></i> 로그인 / 회원가입`;
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        async function fetchCloudActivities() {
+            if (!supabaseClient || !currentUser) return;
+            const { data, error } = await supabaseClient.from('activities').select('*').order('created_at', { ascending: false });
+            if (!error && data) {
+                activities = data;
+                renderActivities();
+            }
+        }
+
+        function loadLocalActivities() {
+            if (!currentUser) {
+                const saved = localStorage.getItem('local_activities');
+                if (saved) activities = JSON.parse(saved);
+            }
+        }
+
+        function saveLocalActivities() {
+            localStorage.setItem('local_activities', JSON.stringify(activities));
+        }
+
+        function renderActivities() {
+            const grid = document.getElementById('activityGrid');
+            const empty = document.getElementById('emptyState');
+            const filterCat = document.getElementById('filterCategory').value;
+            const filterGrd = document.getElementById('filterGrade').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            const filtered = activities.filter(act => {
+                const matchCat = (filterCat === 'ALL' || act.category === filterCat);
+                const matchGrd = (filterGrd === 'ALL' || act.grade === filterGrd);
+                const matchSearch = (act.title.toLowerCase().includes(search) || act.subject.toLowerCase().includes(search));
+                return matchCat && matchGrd && matchSearch;
+            });
+
+            grid.innerHTML = '';
+            if (filtered.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            filtered.forEach(act => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between hover:shadow-md transition";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">${act.grade} | ${act.category}</span>
+                            <span class="text-xs font-semibold text-slate-500">${act.subject}</span>
+                        </div>
+                        <h3 class="font-bold text-slate-900 text-base mb-2 line-clamp-2">${act.title}</h3>
+                        ${act.motivation ? `<p class="text-xs text-slate-600 mb-2 bg-slate-50 p-2 rounded-lg"><b>계기:</b> ${act.motivation}</p>` : ''}
+                        ${act.summary ? `<p class="text-xs text-slate-600 mb-3 line-clamp-3"><b>내용:</b> ${act.summary}</p>` : ''}
+                        ${act.interview ? `<div class="text-xs bg-amber-50 text-amber-900 p-2.5 rounded-lg mb-3 border border-amber-200"><b>🎯 면접 준비:</b> ${act.interview}</div>` : ''}
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between mt-2">
+                        ${act.file_name ? `<span class="text-xs text-indigo-600 font-medium truncate max-w-[150px]" title="${act.file_name}"><i class="fa-solid fa-paperclip mr-1"></i>${act.file_name}</span>` : '<span class="text-xs text-slate-400">파일 없음</span>'}
+                        <div class="flex space-x-1">
+                            <button onclick="editActivity('${act.id}')" class="text-xs text-slate-500 hover:text-indigo-600 p-1.5"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteActivity('${act.id}')" class="text-xs text-slate-500 hover:text-rose-600 p-1.5"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function handleSaveActivity(e) {
+            e.preventDefault();
+            const id = document.getElementById('activityId').value || 'act_' + Date.now();
+            const grade = document.getElementById('formGrade').value;
+            const category = document.getElementById('formCategory').value;
+            const subject = document.getElementById('formSubject').value;
+            const title = document.getElementById('formTitle').value;
+            const motivation = document.getElementById('formMotivation').value;
+            const summary = document.getElementById('formSummary').value;
+            const interview = document.getElementById('formInterview').value;
+            const fileInput = document.getElementById('formFile');
+            
+            let file_name = '';
+            if (fileInput.files.length > 0) {
+                file_name = fileInput.files[0].name;
+            }
+
+            const payload = {
+                id, grade, category, subject, title, motivation, summary, interview, file_name,
+                updated_at: new Date().toISOString()
+            };
+
+            if (supabaseClient && currentUser) {
+                payload.user_id = currentUser.id;
+                await supabaseClient.from('activities').upsert([payload]);
+                await fetchCloudActivities();
+            } else {
+                const idx = activities.findIndex(a => a.id === id);
+                if (idx >= 0) activities[idx] = payload;
+                else activities.unshift(payload);
+                saveLocalActivities();
+                renderActivities();
+            }
+
+            closeActivityModal();
+        }
+
+        async function deleteActivity(id) {
+            if (!confirm('이 탐구 활동 기록을 삭제하시겠습니까?')) return;
+            if (supabaseClient && currentUser) {
+                await supabaseClient.from('activities').delete().eq('id', id);
+                await fetchCloudActivities();
+            } else {
+                activities = activities.filter(a => a.id !== id);
+                saveLocalActivities();
+                renderActivities();
+            }
+        }
+
+        function editActivity(id) {
+            const act = activities.find(a => a.id === id);
+            if (!act) return;
+            document.getElementById('activityId').value = act.id;
+            document.getElementById('formGrade').value = act.grade;
+            document.getElementById('formCategory').value = act.category;
+            document.getElementById('formSubject').value = act.subject;
+            document.getElementById('formTitle').value = act.title;
+            document.getElementById('formMotivation').value = act.motivation || '';
+            document.getElementById('formSummary').value = act.summary || '';
+            document.getElementById('formInterview').value = act.interview || '';
+            document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square mr-2 text-amber-400"></i> 탐구 활동 수정`;
+            document.getElementById('activityModal').classList.remove('hidden');
+        }
+
+        function openActivityModal() {
+            document.getElementById('activityForm').reset();
+            document.getElementById('activityId').value = '';
+            document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-plus mr-2 text-amber-400"></i> 새 탐구 활동 등록`;
+            document.getElementById('activityModal').classList.remove('hidden');
+        }
+        function closeActivityModal() { document.getElementById('activityModal').classList.add('hidden'); }
+
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+            const cfgUrl = localStorage.getItem('sb_url');
+            document.getElementById('cfgUrl').value = cfgUrl || '';
+            const cfgKey = localStorage.getItem('sb_key');
+            document.getElementById('cfgKey').value = cfgKey || '';
+        }
+        function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+
+        function openConfigModal() { document.getElementById('configModal').classList.remove('hidden'); }
+        function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
+
+        function openGithubModal() { document.getElementById('githubModal').classList.remove('hidden'); }
+        function closeGithubModal() { document.getElementById('githubModal').classList.add('hidden'); }
+
+        async function handleLogin() {
+            if (!supabaseClient) return alert('오른쪽 상단 ⚙️ 설정에서 Supabase URL과 Key를 먼저 저장해주세요.');
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) alert('로그인 실패: ' + error.message);
+            else {
+                currentUser = data.user;
+                updateUserUI();
+                fetchCloudActivities();
+                closeAuthModal();
+                alert('성공적으로 로그인되었습니다!');
+            }
+        }
+
+        async function handleSignUp() {
+            if (!supabaseClient) return alert('오른쪽 상단 ⚙️ 설정에서 Supabase URL과 Key를 먼저 저장해주세요.');
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) alert('회원가입 실패: ' + error.message);
+            else {
+                alert('회원가입이 완료되었습니다! 바로 로그인해보세요.');
+            }
+        }
+
+        async function handleLogout() {
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            currentUser = null;
+            updateUserUI();
+            loadLocalActivities();
+            renderActivities();
+            closeAuthModal();
+        }
+
+        function saveSupabaseConfig() {
+            const url = document.getElementById('cfgUrl').value.trim();
+            const key = document.getElementById('cfgKey').value.trim();
+            if (url && key) {
+                localStorage.setItem('sb_url', url);
+                localStorage.setItem('sb_key', key);
+                initSupabase();
+                closeConfigModal();
+                alert('Supabase 연동 정보가 저장되었습니다.');
+            }
+        }
+
+        function copySQL() {
+            const sql = `CREATE TABLE IF NOT EXISTS activities (
+    id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id),
+    grade TEXT,
+    category TEXT,
+    subject TEXT,
+    title TEXT,
+    motivation TEXT,
+    summary TEXT,
+    interview TEXT,
+    file_name TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own activities" ON activities FOR ALL USING (auth.uid() = user_id);`;
+            navigator.clipboard.writeText(sql);
+            alert('SQL 생성 코드가 클립보드에 복사되었습니다! Supabase SQL Editor에 붙여넣어 실행하세요.');
+        }
+    </script>
+</body>
+</html>
